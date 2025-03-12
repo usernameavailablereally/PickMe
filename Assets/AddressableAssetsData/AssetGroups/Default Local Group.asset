@@ -14,7 +14,22 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_GroupName: Default Local Group
   m_GUID: d028f2888856346dd9c3819e43caeffc
-  m_SerializeEntries: []
+  m_SerializeEntries:
+  - m_GUID: 09a13b28e13d04648ae944f93288f220
+    m_Address: SphereItem
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8d9532debfe604741aee88b744e16f2c
+    m_Address: MatchCOnfig
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c2b136e256b74428bb504420e53ce319
+    m_Address: CubeItem
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   m_ReadOnly: 0
   m_Settings: {fileID: 11400000, guid: 7f55048cef3ac46f7ae66c34df51d75a, type: 2}
   m_SchemaSet:
