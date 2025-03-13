@@ -23,7 +23,7 @@ namespace MonoBehaviourComponents
         public void SetMaterial(MaterialData newMaterialData)
         {
             _materialData = newMaterialData;
-            _meshRenderer.material = _materialData.Material;
+            _meshRenderer.sharedMaterial = _materialData.Material;
         }
 
         public void Activate()
