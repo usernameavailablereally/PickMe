@@ -49,7 +49,7 @@ namespace Controllers
         {
             itemComponent = null;
             Ray ray = _mainCamera.ScreenPointToRay(Input.mousePosition);
-            int itemLayer = LayerMask.GetMask(StringConstants.ITEM_RAYCAST_LAYER); // Нужно добавить слой
+            int itemLayer = LayerMask.GetMask(StringConstants.ITEM_RAYCAST_LAYER); 
             if (!Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, itemLayer)) return false;
             
             itemComponent = hit.collider.GetComponent<ItemComponent>();
