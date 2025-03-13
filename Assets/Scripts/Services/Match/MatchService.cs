@@ -1,7 +1,7 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using MonoBehaviours;
+using MonoBehaviourComponents;
 using Services.Events;
 using Services.Factories;
 using Services.Loaders.Configs;
@@ -12,46 +12,37 @@ namespace Services.Match
     {
         private readonly IAssetsLoader _assetsLoader;
         private readonly IItemsFactory _itemsFactory;
-        private readonly PickObjectManager _pickObjectManager;
+        private readonly PickObjectComponent _pickObjectComponent;
         private readonly IDispatcherService _dispatcherService;
-        private readonly RoundLogicController _roundLogicController;
-        private CancellationTokenSource _gameTokenSource;
+        private readonly RoundLogic _roundLogic;
         private CancellationTokenSource _roundTokenSource;
-        private ItemController[] _roundItems;
+        private ItemComponent[] _roundItems;
         private MatchConfig _matchConfig;
-        public MatchService(IAssetsLoader assetsLoader, PickObjectManager pickObjectManager, 
+        private int RoundsCounter { get; set; }
+        
+        public MatchService(IAssetsLoader assetsLoader, PickObjectComponent pickObjectComponent, 
             IDispatcherService dispatcherService)
         {
             _assetsLoader = assetsLoader;
-            _pickObjectManager = pickObjectManager;
+            _pickObjectComponent = pickObjectComponent;
             _dispatcherService = dispatcherService;
-            _roundLogicController = new RoundLogicController(dispatcherService);
+            _roundLogic = new RoundLogic(dispatcherService);
             _itemsFactory = new ItemsFactory();
         }
 
-        public async UniTask BuildScene(CancellationToken cancellationToken)
+        public async UniTask BuildScene(CancellationToken buildCancellationToken)
         {
             _dispatcherService.Subscribe<TargetItemClickedEvent>(OnTargetItemClicked);
-            _matchConfig = await _assetsLoader.LoadMatchConfig(cancellationToken);
-            await _itemsFactory.Init(_matchConfig, cancellationToken);
-        }
+            _matchConfig = await _assetsLoader.LoadAndValidateMatchConfig(buildCancellationToken); 
+            await _itemsFactory.Init(_matchConfig, buildCancellationToken);
+        } 
 
-        public UniTask ClearScene()
-        {
-            _dispatcherService.Unsubscribe<TargetItemClickedEvent>(OnTargetItemClicked);
-            return UniTask.CompletedTask;
-        }
-
-        public async UniTask RunGame(CancellationToken cancellationToken)
+        public async UniTask RunGame()
         {
             try
             {
-                _gameTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                RoundsCounter = 0;
                 await StartRound();
-
-                // Global gameToken await in addition to roundToken.
-                // Debatable for this case, but I'll keep it
-                await UniTask.WaitUntilCanceled(_gameTokenSource.Token);
             }
             catch (OperationCanceledException)
             {
@@ -65,30 +56,41 @@ namespace Services.Match
             _roundTokenSource?.Cancel();
             _roundTokenSource = new CancellationTokenSource();
 
+            RoundsCounter++;
+            if (IsGameFinished())
+            {
+                _dispatcherService.Dispatch(new RestartGameEvent());
+                return UniTask.CompletedTask;
+            }
+            
+            _dispatcherService.Dispatch(new RoundCounterUpdatedEvent(RoundsCounter, _matchConfig.RoundsCount));
             _roundItems = _itemsFactory.GetPortion(_matchConfig.ItemsPerRoundCount);
-            _pickObjectManager.PlaceItems(_roundItems);
-            _roundLogicController.StartRound(_roundItems, _roundTokenSource.Token);
+            _pickObjectComponent.PlaceItems(_roundItems);
+            _roundLogic.StartRound(_roundItems, _roundTokenSource.Token);
             return UniTask.CompletedTask;
         }
-        
+
+        private bool IsGameFinished()
+        {
+            return RoundsCounter == _matchConfig.RoundsCount;
+        }
+
         private void EndRound()
         {
-            _roundLogicController.EndRound();
+            _roundLogic.EndRound();
             _itemsFactory.ReturnPortion(_roundItems);
         }
 
         private void OnTargetItemClicked(TargetItemClickedEvent obj)
         {
             EndRound();
-            StartRound();
+            StartRound().Forget();
         }
 
         public void Dispose()
         {
-            _roundTokenSource?.Cancel();
-            _roundTokenSource?.Dispose();
-            _gameTokenSource?.Cancel();
-            _gameTokenSource?.Dispose();
+            _dispatcherService.Unsubscribe<TargetItemClickedEvent>(OnTargetItemClicked);
+            _itemsFactory.Clear();
         }
     }
 }

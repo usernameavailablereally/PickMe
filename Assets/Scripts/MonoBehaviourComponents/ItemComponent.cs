@@ -1,34 +1,30 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Services.Factories.Pools;
 using UnityEngine;
 
-namespace MonoBehaviours
+namespace MonoBehaviourComponents
 {
-    public class ItemController : MonoBehaviour
+    public class ItemComponent : MonoBehaviour
     {
         [SerializeField] private MeshRenderer _meshRenderer;
-        
+
         private const float BLINK_DURATION = 0.1f;
         private const int BLINK_COUNT = 3;
         private const float OFFSET = 0.1f;
-        
-        private Material _material;
+
+        private MaterialData _materialData;
         private Vector3 _startPosition;
         private bool _isAnimating;
         private CancellationTokenSource _animationCancellationTokenSource;
 
-        private void Awake()
-        {
-            _material = _meshRenderer.material;
-        }
+        public Color Color => _materialData.Material.color;
 
-        public Color Color => _material.color;
-
-        public void SetMaterial(Material newMaterial)
+        public void SetMaterial(MaterialData newMaterialData)
         {
-            _material = newMaterial;
-            _meshRenderer.material = _material;
+            _materialData = newMaterialData;
+            _meshRenderer.material = _materialData.Material;
         }
 
         public void Activate()
@@ -38,13 +34,12 @@ namespace MonoBehaviours
 
         public void Deactivate()
         {
-            transform.position = Vector3.zero;
             gameObject.SetActive(false);
         }
-        
-        public Material GetMaterial()
+
+        public MaterialData GetMaterialAlias()
         {
-            return _material;
+            return _materialData;
         }
 
         public async UniTaskVoid AnimateWrong(CancellationToken roundCancellationToken)
@@ -56,38 +51,34 @@ namespace MonoBehaviours
                 _isAnimating = true;
                 _startPosition = transform.position;
                 _animationCancellationTokenSource?.Cancel();
-                _animationCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(roundCancellationToken);
+                _animationCancellationTokenSource =
+                    CancellationTokenSource.CreateLinkedTokenSource(roundCancellationToken);
 
                 await BlinkAsync(_animationCancellationTokenSource.Token);
             }
             catch (OperationCanceledException)
             {
-                // Игнорируем отмену
+                Debug.Log("AnimateWrong operation was cancelled");
             }
             finally
             {
-                transform.position = _startPosition;
-                _isAnimating = false;
+                if (this != null)
+                {
+                    _isAnimating = false;
+                }
             }
         }
 
         private async UniTask BlinkAsync(CancellationToken cancellationToken)
         {
             Vector3 startLocalPosition = transform.localPosition;
-    
-            try
+            for (var i = 0; i < BLINK_COUNT && !cancellationToken.IsCancellationRequested; i++)
             {
-                for (var i = 0; i < BLINK_COUNT && !cancellationToken.IsCancellationRequested; i++)
-                {
-                    transform.localPosition = startLocalPosition + Vector3.left * OFFSET;
-                    await UniTask.Delay((int)(BLINK_DURATION * 1000), cancellationToken: cancellationToken);
+                transform.localPosition = startLocalPosition + Vector3.left * OFFSET;
+                await UniTask.Delay((int)(BLINK_DURATION * 1000), cancellationToken: cancellationToken);
 
-                    transform.localPosition = startLocalPosition + Vector3.right * OFFSET;
-                    await UniTask.Delay((int)(BLINK_DURATION * 1000), cancellationToken: cancellationToken);
-                }
-            }
-            finally
-            {
+                transform.localPosition = startLocalPosition + Vector3.right * OFFSET;
+                await UniTask.Delay((int)(BLINK_DURATION * 1000), cancellationToken: cancellationToken);
                 transform.localPosition = startLocalPosition;
             }
         }

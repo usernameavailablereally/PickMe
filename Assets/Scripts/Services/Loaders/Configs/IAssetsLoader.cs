@@ -6,6 +6,6 @@ namespace Services.Loaders.Configs
     // TODO split into separate interfaces
     public interface IAssetsLoader
     {
-        UniTask<MatchConfig> LoadMatchConfig(CancellationToken cancellationToken);
+        UniTask<MatchConfig> LoadAndValidateMatchConfig(CancellationToken cancellationToken);
     }
 }

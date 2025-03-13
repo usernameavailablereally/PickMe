@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace MonoBehaviours
+namespace MonoBehaviourComponents
 {
-    public class PickObjectManager : MonoBehaviour
+    public class PickObjectComponent : MonoBehaviour
     {
         [SerializeField] private Transform _itemsParent;
         [SerializeField] private Camera _mainCamera;
@@ -12,7 +12,7 @@ namespace MonoBehaviours
         private const float VIEWPORT_Y_OFFSET = 0.5f;
         private const float SPACING_FACTOR = 1.0f;
 
-        public void PlaceItems(IList<ItemController> items)
+        public void PlaceItems(IList<ItemComponent> items)
         {
             if (items == null || items.Count == 0) return;
 

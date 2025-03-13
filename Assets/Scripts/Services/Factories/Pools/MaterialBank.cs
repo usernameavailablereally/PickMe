@@ -1,16 +1,17 @@
 using System.Collections.Generic;
+using Services.Loaders.Configs;
 using UnityEngine;
 
 namespace Services.Factories.Pools
 {
     public class MaterialBank 
     {
-        private readonly List<Material> _materials;
+        private readonly List<MaterialData> _materialAliases;
         private readonly Shader _standardShader;
 
-        public MaterialBank(Color[] colors)
+        public MaterialBank(ColorDefinition[] colorsAliases)
         {
-            _materials = new List<Material>(colors.Length);
+            _materialAliases = new List<MaterialData>(colorsAliases.Length);
             _standardShader = Shader.Find(StringConstants.URP_SHADER_PATH);
 
             if (_standardShader == null)
@@ -19,44 +20,44 @@ namespace Services.Factories.Pools
                 return;
             }
 
-            CreateMaterials(colors);
+            CreateMaterials(colorsAliases);
         }
 
-        private void CreateMaterials(Color[] colors)
+        private void CreateMaterials(ColorDefinition[] colorAlias)
         {
-            foreach (Color color in colors)
+            foreach (ColorDefinition color in colorAlias)
             {
-                var material = new Material(_standardShader) { color = color };
-                _materials.Add(material);
+                var material = new Material(_standardShader) { color = color.Color };
+                _materialAliases.Add(new MaterialData { Material = material, ColorDefinition = color });
             }
         }
 
-        public Material Get()
+        public MaterialData Get()
         {
-            if (_standardShader == null || _materials.Count == 0)
+            if (_standardShader == null || _materialAliases.Count == 0)
             {
                 Debug.LogError("Can't get material. Shader or materials are not initialized.");
                 return null;
             }
-            int randomIndex = Random.Range(0, _materials.Count);
-            Material targetMaterial = _materials[randomIndex];
-            _materials.RemoveAt(randomIndex);
+            int randomIndex = Random.Range(0, _materialAliases.Count);
+            MaterialData targetMaterial = _materialAliases[randomIndex];
+            _materialAliases.RemoveAt(randomIndex);
             return targetMaterial;
         }
     
-        public void Return(Material material)
+        public void Return(MaterialData materialData)
         {
-            if (material == null) return;
-            _materials.Add(material);
+            if (materialData == null) return;
+            _materialAliases.Add(materialData);
         }
 
         public void Clear()
         {
-            foreach (Material material in _materials)
+            foreach (MaterialData materialAlias in _materialAliases)
             {
-                if (material != null)
+                if (materialAlias != null)
                 {
-                    Object.Destroy(material);
+                    Object.Destroy(materialAlias.Material);
                 }
             }
         }

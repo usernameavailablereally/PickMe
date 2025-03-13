@@ -1,55 +1,85 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Services.Loaders.Configs;
+using Services.Events;
 using Services.Match;
+using UnityEngine;
 using VContainer;
 using VContainer.Unity;
 
 namespace Services
 {
-    // Generates initial grid. Playing life generations is in LifePlayer.cs 
     public class EntryPointService : IAsyncStartable, IDisposable
     {
         private readonly IMatchService _matchService;
-        private AssetsLoader _loader;
-        CancellationTokenSource _startCancellationTokenSource;
-        
+        private readonly IDispatcherService _dispatcherService;
+        private CancellationTokenSource _gameStartCancellationTokenSource;
+        private bool _isRestarting;
+        private bool _disposed;
+
         [Inject]
-        public EntryPointService(IMatchService matchService)
+        public EntryPointService(IMatchService matchService, IDispatcherService dispatcherService)
         {
-            _matchService = matchService;
-        } 
+            _matchService = matchService ?? throw new ArgumentNullException(nameof(matchService));
+            _dispatcherService = dispatcherService ?? throw new ArgumentNullException(nameof(dispatcherService));
+            _dispatcherService.Subscribe<RestartGameEvent>(OnRestartTriggered);
+        }
 
         public async UniTask StartAsync(CancellationToken cancellation)
         {
-            _startCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
-            // here could be loading control, if there are many resources  
-            
-            // here could be Scene managing, if there are many
-            await _matchService.BuildScene(cancellation);
-            await _matchService.RunGame(cancellation);
-        }  
+            if (_disposed) throw new ObjectDisposedException(nameof(EntryPointService));
+        
+            _gameStartCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
+        
+            await _matchService.BuildScene(_gameStartCancellationTokenSource.Token);
+            await _matchService.RunGame();
+        }
 
-        public void OnRestartClicked()
+        private void OnRestartTriggered(RestartGameEvent data)
         {
+            if (_isRestarting || _disposed) return;
+            Debug.Log("<color=white>Restarting game...</color>");
             ReStartAsync().Forget();
         }
 
         private async UniTask ReStartAsync()
         {
-            _startCancellationTokenSource.Cancel();
+            try
+            {
+                _isRestarting = true;
+                _gameStartCancellationTokenSource?.Cancel();
+                _gameStartCancellationTokenSource?.Dispose();
 
-            await _matchService.ClearScene();
- 
-            // New global game cancellation token
-            _startCancellationTokenSource = new CancellationTokenSource();
-            await StartAsync(_startCancellationTokenSource.Token);
+                // no crucial need to dispose and load again assets, just showing how lifecycle is clean and idempotent 
+                // can be easily removed if _matchService.BuildScene will be moved outside the ReStart pipeline
+                _matchService.Dispose();
+
+                _gameStartCancellationTokenSource = new CancellationTokenSource();
+                await StartAsync(_gameStartCancellationTokenSource.Token);
+            }
+            catch (Exception)
+            {
+                Debug.Log("<color=red>Failed to restart game</color>");
+                _isRestarting = false;  
+                throw;
+            }
+            finally
+            {
+                _isRestarting = false;  
+            } 
         }
-        
+
         public void Dispose()
         {
-            _startCancellationTokenSource?.Dispose();
+            if (_disposed) return;
+            
+            _disposed = true;
+            _isRestarting = false;
+            _gameStartCancellationTokenSource?.Cancel();
+            _gameStartCancellationTokenSource?.Dispose();
+            _gameStartCancellationTokenSource = null;
+            _dispatcherService.Unsubscribe<RestartGameEvent>(OnRestartTriggered);
+            _dispatcherService.ClearAllSubscriptions();
         }
     }
 }

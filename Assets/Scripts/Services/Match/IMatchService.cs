@@ -5,8 +5,8 @@ namespace Services.Match
 {
     public interface IMatchService
     {
-        UniTask BuildScene(CancellationToken cancellationToken);
-        UniTask RunGame(CancellationToken cancellationToken);
-        UniTask ClearScene();
+        UniTask BuildScene(CancellationToken buildCancellationToken);
+        UniTask RunGame();
+        void Dispose();
     }
 }

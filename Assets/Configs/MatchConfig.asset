@@ -26,6 +26,9 @@ MonoBehaviour:
   ItemsPerRoundCount: 3
   RoundsCount: 10
   Colors:
-  - {r: 1, g: 0, b: 0, a: 0}
-  - {r: 0.17307985, g: 1, b: 0, a: 0}
-  - {r: 0, g: 0.11240196, b: 1, a: 0}
+  - Color: {r: 1, g: 0, b: 0, a: 0}
+    Name: Red
+  - Color: {r: 0, g: 1, b: 0, a: 0}
+    Name: Green
+  - Color: {r: 0, g: 0, b: 1, a: 0}
+    Name: Blue

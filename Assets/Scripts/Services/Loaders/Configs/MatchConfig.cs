@@ -12,6 +12,6 @@ namespace Services.Loaders.Configs
         public AssetReference[] ItemPrefabs;
         public int ItemsPerRoundCount;
         public int RoundsCount;
-        public Color[] Colors;
+        public ColorDefinition[] Colors;
     }
 }

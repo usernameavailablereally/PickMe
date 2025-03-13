@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using MonoBehaviours;
+using MonoBehaviourComponents;
 using Services.Factories.Pools;
 using Services.Loaders.Configs;
 using UnityEngine;
@@ -14,7 +14,7 @@ namespace Services.Factories
 {
 public class ItemsFactory : IItemsFactory
 {
-    private ObjectPool<ItemController> _objectPool;
+    private ObjectPool<ItemComponent> _objectPool;
     private MaterialBank _materialBank;
     private readonly List<AsyncOperationHandle<GameObject>> _handles = new();
 
@@ -22,8 +22,8 @@ public class ItemsFactory : IItemsFactory
     {
         try
         {
-            List<ItemController> prefabs = await LoadPrefabs(matchConfig.ItemPrefabs, matchConfig.ItemsPerRoundCount, cancellationToken);
-            _objectPool = new ObjectPool<ItemController>(prefabs);
+            List<ItemComponent> prefabs = await LoadPrefabs(matchConfig.ItemPrefabs, matchConfig.ItemsPerRoundCount, cancellationToken);
+            _objectPool = new ObjectPool<ItemComponent>(prefabs);
             _materialBank = new MaterialBank(matchConfig.Colors);
         }
         catch
@@ -39,10 +39,10 @@ public class ItemsFactory : IItemsFactory
     /// So we will be able to randomly get 3 cubes in a row, for example.
     /// No overflow support needed, since the ItemsPerRound and RoundCount are fixed.
     /// </summary>
-    private async UniTask<List<ItemController>> LoadPrefabs(AssetReference[] itemPrefabs, int duplicationCount,
+    private async UniTask<List<ItemComponent>> LoadPrefabs(AssetReference[] itemPrefabs, int duplicationCount,
         CancellationToken cancellationToken)
     {
-        var prefabs = new List<ItemController>();
+        var prefabs = new List<ItemComponent>();
 
         foreach (AssetReference prefab in itemPrefabs)
         {
@@ -53,41 +53,41 @@ public class ItemsFactory : IItemsFactory
                 
                 GameObject instance = await handle.WithCancellation(cancellationToken);
                 instance.SetActive(false);
-                prefabs.Add(instance.GetComponent<ItemController>());
+                prefabs.Add(instance.GetComponent<ItemComponent>());
             }
         }
 
         return prefabs;
     }
 
-    public ItemController[] GetPortion(int itemsCount)
+    public ItemComponent[] GetPortion(int itemsCount)
     {
         return Enumerable.Range(0, itemsCount)
             .Select(_ => Get())
             .ToArray();
     }
 
-    private ItemController Get()
+    private ItemComponent Get()
     {
-        ItemController item = _objectPool.GetRandomNext();
-        Material material = _materialBank.Get();
+        ItemComponent item = _objectPool.GetRandomNext();
+        MaterialData material = _materialBank.Get();
         
         item.SetMaterial(material);
         item.Activate();
         return item;
     }
 
-    public void ReturnPortion(ItemController[] items)
+    public void ReturnPortion(ItemComponent[] items)
     {
         if (items == null) return;
         Array.ForEach(items, Return);
     }
 
-    private void Return(ItemController item)
+    private void Return(ItemComponent item)
     {
         if (item == null) return;
 
-        _materialBank.Return(item.GetMaterial());
+        _materialBank.Return(item.GetMaterialAlias());
         
         // I'm not prefer pools to be responsible for disabling objects
         item.Deactivate();
