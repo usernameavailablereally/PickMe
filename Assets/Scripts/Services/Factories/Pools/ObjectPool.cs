@@ -34,10 +34,6 @@ namespace Services.Factories.Pools
         //TODO REMOVE OR USE Addressables.ReleaseInstance(obj.gameObject) instead of Destroy(obj.gameObject)
         public void Clear()
         {
-            // foreach (T obj in _objects)
-            // {
-            //     Object.Destroy(obj.gameObject);
-            // }
             _objects.Clear();
         }
     }

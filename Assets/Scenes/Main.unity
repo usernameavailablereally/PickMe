@@ -153,6 +153,7 @@ MonoBehaviour:
   autoRun: 1
   autoInjectGameObjects: []
   _pickObjectManager: {fileID: 2099120746}
+  _mainCamera: {fileID: 330585545}
 --- !u!4 &287888491
 Transform:
   m_ObjectHideFlags: 0

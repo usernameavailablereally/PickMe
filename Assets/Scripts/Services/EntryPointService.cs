@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Services.Loaders.Configs;
@@ -8,7 +9,7 @@ using VContainer.Unity;
 namespace Services
 {
     // Generates initial grid. Playing life generations is in LifePlayer.cs 
-    public class EntryPointService : IAsyncStartable//, IRestartClickHandler
+    public class EntryPointService : IAsyncStartable, IDisposable
     {
         private readonly IMatchService _matchService;
         private AssetsLoader _loader;
@@ -37,11 +38,18 @@ namespace Services
 
         private async UniTask ReStartAsync()
         {
-            _startCancellationTokenSource.Cancel(); // stops current game if it is still running (or stucked)
+            _startCancellationTokenSource.Cancel();
+
             await _matchService.ClearScene();
-            await StartAsync(CancellationToken.None);
-            // Clear scene
-            // StartAsync
-        }  
+ 
+            // New global game cancellation token
+            _startCancellationTokenSource = new CancellationTokenSource();
+            await StartAsync(_startCancellationTokenSource.Token);
+        }
+        
+        public void Dispose()
+        {
+            _startCancellationTokenSource?.Dispose();
+        }
     }
 }

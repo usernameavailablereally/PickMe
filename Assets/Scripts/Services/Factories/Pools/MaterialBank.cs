@@ -3,38 +3,62 @@ using UnityEngine;
 
 namespace Services.Factories.Pools
 {
-    public class MaterialBank
+    public class MaterialBank 
     {
-        private readonly List<Material> materials = new List<Material>();
-        private readonly Shader standardShader;
+        private readonly List<Material> _materials;
+        private readonly Shader _standardShader;
 
         public MaterialBank(Color[] colors)
         {
-            standardShader = Shader.Find(StringConstants.URPShaderPath);
+            _materials = new List<Material>(colors.Length);
+            _standardShader = Shader.Find(StringConstants.URP_SHADER_PATH);
+
+            if (_standardShader == null)
+            {
+                Debug.LogError($"Shader not found: {StringConstants.URP_SHADER_PATH}");
+                return;
+            }
+
+            CreateMaterials(colors);
+        }
+
+        private void CreateMaterials(Color[] colors)
+        {
             foreach (Color color in colors)
             {
-                Material newMaterial = new Material(standardShader) { color = color };
-                materials.Add(newMaterial);
+                var material = new Material(_standardShader) { color = color };
+                _materials.Add(material);
             }
         }
 
         public Material Get()
         {
-            if (materials.Count > 0)
+            if (_standardShader == null || _materials.Count == 0)
             {
-                Material material = materials[0];
-                materials.RemoveAt(0);
-                return material;
+                Debug.LogError("Can't get material. Shader or materials are not initialized.");
+                return null;
             }
-            else
-            {
-                return new Material(standardShader);
-            }
+            int randomIndex = Random.Range(0, _materials.Count);
+            Material targetMaterial = _materials[randomIndex];
+            _materials.RemoveAt(randomIndex);
+            return targetMaterial;
+        }
+    
+        public void Return(Material material)
+        {
+            if (material == null) return;
+            _materials.Add(material);
         }
 
-        public void ReturnToPool(Material material)
+        public void Clear()
         {
-            materials.Add(material);
+            foreach (Material material in _materials)
+            {
+                if (material != null)
+                {
+                    Object.Destroy(material);
+                }
+            }
         }
     }
 }

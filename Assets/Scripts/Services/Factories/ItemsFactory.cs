@@ -1,100 +1,115 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using MonoBehaviours;
 using Services.Factories.Pools;
+using Services.Loaders.Configs;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
 
 namespace Services.Factories
 {
-    public class ItemsFactory : IItemsFactory
+public class ItemsFactory : IItemsFactory
+{
+    private ObjectPool<ItemController> _objectPool;
+    private MaterialBank _materialBank;
+    private readonly List<AsyncOperationHandle<GameObject>> _handles = new();
+
+    public async UniTask Init(MatchConfig matchConfig, CancellationToken cancellationToken)
     {
-        private ObjectPool<GameObject> _objectPool;
-        private MaterialBank _materialBank;
-        private IItemsFactory _itemsFactoryImplementation;
-
-        public async UniTask Init(AssetReference[] itemPrefabs, int duplicationCount, Color[] itemColors)
+        try
         {
-            await InitItemsPool(itemPrefabs, duplicationCount);
-            await InitMaterialsBank(itemColors);
-        } 
-        
-        /// <summary>
-        /// Pool of objects to be reused in rounds.
-        /// We assume that we need duplications of the same prefab in the pool.
-        /// If there are 3 items in round, cubes or spheres, we need 3*cubes and 3*spheres in the pool.
-        /// So we will be able to randomly get 3 cubes in a row, for example.
-        /// No overflow support needed, since the ItemsPerRound and RoundCount are fixed.
-        /// </summary>
-        private async UniTask InitItemsPool(AssetReference[] itemPrefabs, int duplicationCount)
-        {
-            var instantiatedPrefabs = new List<GameObject>();
-
-            foreach (AssetReference prefabReference in itemPrefabs)
-            {
-                for (int i = 0; i < duplicationCount; i++)
-                {
-                    AsyncOperationHandle<GameObject> handle = prefabReference.InstantiateAsync();
-                    await handle.Task;
-                    if (handle.Status == AsyncOperationStatus.Succeeded)
-                    {
-                        GameObject instantiatedObject = handle.Result;
-                        instantiatedPrefabs.Add(instantiatedObject);
-                    }
-                    else
-                    {
-                        Debug.LogError($"Failed to instantiate prefab: {prefabReference.RuntimeKey}");
-                    }
-                }
-            }
-
-            _objectPool = new ObjectPool<GameObject>(instantiatedPrefabs);
+            List<ItemController> prefabs = await LoadPrefabs(matchConfig.ItemPrefabs, matchConfig.ItemsPerRoundCount, cancellationToken);
+            _objectPool = new ObjectPool<ItemController>(prefabs);
+            _materialBank = new MaterialBank(matchConfig.Colors);
         }
-
-        private UniTask InitMaterialsBank(Color[] colors)
+        catch
         {
-            _materialBank = new MaterialBank(colors);
-            return UniTask.CompletedTask;
-        } 
-
-        public ItemController[] GetPortion(int itemsCount)
-        {
-            var items = new ItemController[itemsCount];
-            for (var i = 0; i < itemsCount; i++)
-            {
-                ItemController obj = Get();
-                items[i] = obj;
-            }
-
-            return items;
-        }
-
-        public void ReturnPortion(ItemController[] items)
-        {
-            foreach (ItemController item in items)
-            {
-                Return(item);
-            }
-        }
-
-        public void Clear()
-        {
-            
-        }
-
-        private ItemController Get()
-        {
-            GameObject obj = _objectPool.GetRandomNext();
-            Material mat = _materialBank.Get();
-            obj.GetComponent<Renderer>().material = mat;
-            return obj.GetComponent<ItemController>();
-        }
-        
-        private void Return(ItemController obj)
-        {
-            _objectPool.ReturnToPool(obj.gameObject);
-            _materialBank.ReturnToPool(obj.GetComponent<Renderer>().material);
+            Clear();
+            throw;
         }
     }
+    /// <summary>
+    /// LoadPrefabs objects to be reused in rounds.
+    /// We assume that we need duplications of the same prefab in the pool.
+    /// If there are 3 items in round, cubes or spheres, we need 3*cubes and 3*spheres in the pool.
+    /// So we will be able to randomly get 3 cubes in a row, for example.
+    /// No overflow support needed, since the ItemsPerRound and RoundCount are fixed.
+    /// </summary>
+    private async UniTask<List<ItemController>> LoadPrefabs(AssetReference[] itemPrefabs, int duplicationCount,
+        CancellationToken cancellationToken)
+    {
+        var prefabs = new List<ItemController>();
+
+        foreach (AssetReference prefab in itemPrefabs)
+        {
+            for (int i = 0; i < duplicationCount; i++)
+            {
+                AsyncOperationHandle<GameObject> handle = prefab.InstantiateAsync();
+                _handles.Add(handle);
+                
+                GameObject instance = await handle.WithCancellation(cancellationToken);
+                instance.SetActive(false);
+                prefabs.Add(instance.GetComponent<ItemController>());
+            }
+        }
+
+        return prefabs;
+    }
+
+    public ItemController[] GetPortion(int itemsCount)
+    {
+        return Enumerable.Range(0, itemsCount)
+            .Select(_ => Get())
+            .ToArray();
+    }
+
+    private ItemController Get()
+    {
+        ItemController item = _objectPool.GetRandomNext();
+        Material material = _materialBank.Get();
+        
+        item.SetMaterial(material);
+        item.Activate();
+        return item;
+    }
+
+    public void ReturnPortion(ItemController[] items)
+    {
+        if (items == null) return;
+        Array.ForEach(items, Return);
+    }
+
+    private void Return(ItemController item)
+    {
+        if (item == null) return;
+
+        _materialBank.Return(item.GetMaterial());
+        
+        // I'm not prefer pools to be responsible for disabling objects
+        item.Deactivate();
+        _objectPool.ReturnToPool(item);
+    }
+
+    public void Clear()
+    {
+        foreach (AsyncOperationHandle<GameObject> handle in _handles)
+        {
+            if (handle.IsValid())
+            {
+                Addressables.Release(handle);
+            }
+        }
+        _handles.Clear();
+
+        _objectPool?.Clear();
+        _materialBank?.Clear();
+
+        _objectPool = null;
+        _materialBank = null;
+    }
+}
 }

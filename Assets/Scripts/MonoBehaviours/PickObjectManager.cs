@@ -1,26 +1,32 @@
 using System.Collections.Generic;
-using MonoBehaviours;
 using UnityEngine;
 
-public class PickObjectManager : MonoBehaviour
+namespace MonoBehaviours
 {
-    [SerializeField] private Transform _itemsParent;
-    [SerializeField] private Camera _mainCamera;
-
-    public void PlaceItems(IList<ItemController> items)
+    public class PickObjectManager : MonoBehaviour
     {
-        if (items == null || items.Count == 0) return;
+        [SerializeField] private Transform _itemsParent;
+        [SerializeField] private Camera _mainCamera;
+        
+        private const float CAMERA_Z_OFFSET = 2;
+        private const float VIEWPORT_Y_OFFSET = 0.5f;
+        private const float SPACING_FACTOR = 1.0f;
 
-        float spacing = 1.0f / (items.Count + 1);
-
-        for (var i = 0; i < items.Count; i++)
+        public void PlaceItems(IList<ItemController> items)
         {
-            float viewportX = spacing * (i + 1);
-            var viewportPosition = new Vector3(viewportX, 0.5f, _mainCamera.nearClipPlane + 2);
-            Vector3 worldPosition = _mainCamera.ViewportToWorldPoint(viewportPosition);
-            worldPosition.y = _itemsParent.position.y;
-            items[i].transform.position = worldPosition;
-            items[i].transform.SetParent(_itemsParent);
+            if (items == null || items.Count == 0) return;
+
+            float spacing = SPACING_FACTOR / (items.Count + 1);
+
+            for (var i = 0; i < items.Count; i++)
+            {
+                float viewportX = spacing * (i + 1);
+                var viewportPosition = new Vector3(viewportX, VIEWPORT_Y_OFFSET, _mainCamera.nearClipPlane + CAMERA_Z_OFFSET);
+                Vector3 worldPosition = _mainCamera.ViewportToWorldPoint(viewportPosition);
+                worldPosition.y = _itemsParent.position.y; 
+                items[i].transform.SetParent(_itemsParent);
+                items[i].transform.position = worldPosition;
+            }
         }
     }
 }
