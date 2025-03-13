@@ -37,7 +37,7 @@ namespace Controllers
 
             if (IsLeftButtonDown())
             {
-                if (TryGetItemUnderCursor(out ItemComponent itemController))
+                if (TryGetItemUnderCursor(out ItemComponent itemController)  && itemController != null)
                 {
                     _dispatcherService.Dispatch(new UnknownItemClickedEvent(itemController));
                 }
@@ -49,8 +49,8 @@ namespace Controllers
         {
             itemComponent = null;
             Ray ray = _mainCamera.ScreenPointToRay(Input.mousePosition);
-
-            if (!Physics.Raycast(ray, out RaycastHit hit)) return false;
+            int itemLayer = LayerMask.GetMask(StringConstants.ITEM_RAYCAST_LAYER); // Нужно добавить слой
+            if (!Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, itemLayer)) return false;
             
             itemComponent = hit.collider.GetComponent<ItemComponent>();
             return itemComponent != null;

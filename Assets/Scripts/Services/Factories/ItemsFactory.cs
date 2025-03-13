@@ -89,7 +89,7 @@ public class ItemsFactory : IItemsFactory
 
         _materialBank.Return(item.GetMaterialAlias());
         
-        // I'm not prefer pools to be responsible for disabling objects
+        // I prefer pools not to be responsible for disabling objects
         item.Deactivate();
         _objectPool.ReturnToPool(item);
     }

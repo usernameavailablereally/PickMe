@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using NUnit.Framework;
 using UnityEngine;
 
 namespace MonoBehaviourComponents
@@ -11,6 +12,11 @@ namespace MonoBehaviourComponents
         private const float CAMERA_Z_OFFSET = 2;
         private const float VIEWPORT_Y_OFFSET = 0.5f;
         private const float SPACING_FACTOR = 1.0f;
+        private void Awake()
+        {
+            Assert.IsNotNull(_itemsParent, "itemsParent is null");
+            Assert.IsNotNull(_mainCamera, "mainCamera is null");
+        }
 
         public void PlaceItems(IList<ItemComponent> items)
         {

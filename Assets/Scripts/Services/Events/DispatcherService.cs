@@ -1,52 +1,56 @@
 using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using UnityEngine;
 
 namespace Services.Events
 {
-    public class DispatcherService : IDispatcherService
+    public class DispatcherService : IDispatcherService, IDisposable
     {
-        private readonly Dictionary<Type, Delegate> _eventListeners = new();
+        /// Thread-safe dictionary
+        private readonly ConcurrentDictionary<Type, Delegate> _eventListeners = new();
+        private readonly ConcurrentDictionary<Type, byte> _processingEvents = new();
 
         public void Subscribe<T>(Action<T> listener) where T : GameEventBase
         {
-            if (!_eventListeners.ContainsKey(typeof(T)))
-            { 
-                _eventListeners[typeof(T)] = listener;
-            }
-            else
-            {
-                _eventListeners[typeof(T)] =
-                    Delegate.Combine(_eventListeners[typeof(T)],
-                        listener);
-            }
+            _eventListeners.AddOrUpdate(
+                typeof(T),
+                listener,
+                (_, existing) => Delegate.Combine(existing, listener));
         }
 
         public void Unsubscribe<T>(Action<T> listener) where T : GameEventBase
         {
-            if (_eventListeners.ContainsKey(typeof(T)))
-            {
-                _eventListeners[typeof(T)] = Delegate.Remove(_eventListeners[typeof(T)], listener);
-
-                // If no listeners remain, remove the key from the dictionary
-                if (_eventListeners[typeof(T)] == null)
-                {
-                    _eventListeners.Remove(typeof(T));
-                }
-            }
+            _eventListeners.AddOrUpdate(
+                typeof(T),
+                _ => null,
+                (_, existing) => Delegate.Remove(existing, listener));
         }
 
         public void Dispatch(GameEventBase eventData)
         {
-            Type eventType = eventData.GetType();
+            var eventType = eventData.GetType();
+            if (!_processingEvents.TryAdd(eventType, 0)) return;
 
-            if (_eventListeners.TryGetValue(eventType, out Delegate handler))
+            try
             {
-                handler?.DynamicInvoke(eventData); // Invoke all registered listeners for this event type
+                if (_eventListeners.TryGetValue(eventType, out var handler))
+                {
+                    foreach (var d in handler.GetInvocationList())
+                    {
+                        try
+                        {
+                            d.DynamicInvoke(eventData);
+                        }
+                        catch (Exception e)
+                        {
+                            Debug.LogError($"Handler error: {e.Message}");
+                        }
+                    }
+                }
             }
-            else
+            finally
             {
-                Debug.LogWarning($"No listeners found for event: {eventType}");
+                _processingEvents.TryRemove(eventType, out _);
             }
         }
 
@@ -54,5 +58,14 @@ namespace Services.Events
         {
             _eventListeners.Clear();
         }
+
+        public void Dispose()
+        {
+            _eventListeners.Clear();
+            _processingEvents.Clear();
+            GC.SuppressFinalize(this);
+        }
+
+        ~DispatcherService() => Dispose();
     }
 }

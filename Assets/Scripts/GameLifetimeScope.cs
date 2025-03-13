@@ -21,9 +21,7 @@ public class GameLifetimeScope : LifetimeScope
             
         RegisterMonoComponents(builder);
             
-        RegisterControllers(builder);
-            
-        RegisterInstances(builder);
+        RegisterInterfaces(builder);
             
         RegisterEntryPoints(builder);
     }
@@ -42,15 +40,10 @@ public class GameLifetimeScope : LifetimeScope
         builder.RegisterComponent(_mainCamera);
         builder.RegisterComponent(_roundsCounterComponent);
         builder.RegisterComponent(_taskViewerComponent);
-    }
-
-    private void RegisterControllers(IContainerBuilder builder)
+    } 
+    private void RegisterInterfaces(IContainerBuilder builder)
     {
         builder.Register<GameInputController>(Lifetime.Singleton).As<ITickable>();
-    }
-        
-    private void RegisterInstances(IContainerBuilder builder)
-    {
         builder.Register<AssetsManager>(Lifetime.Singleton).AsImplementedInterfaces();
         builder.Register<MatchService>(Lifetime.Singleton).AsImplementedInterfaces();
         builder.Register<DispatcherService>(Lifetime.Singleton).AsImplementedInterfaces();

@@ -15,7 +15,6 @@ namespace MonoBehaviourComponents
         private const float OFFSET = 0.1f;
 
         private MaterialData _materialData;
-        private Vector3 _startPosition;
         private bool _isAnimating;
         private CancellationTokenSource _animationCancellationTokenSource;
 
@@ -49,7 +48,6 @@ namespace MonoBehaviourComponents
             try
             {
                 _isAnimating = true;
-                _startPosition = transform.position;
                 _animationCancellationTokenSource?.Cancel();
                 _animationCancellationTokenSource =
                     CancellationTokenSource.CreateLinkedTokenSource(roundCancellationToken);

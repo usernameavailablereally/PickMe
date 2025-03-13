@@ -5,6 +5,7 @@ using MonoBehaviourComponents;
 using Services.Events;
 using Services.Factories;
 using Services.Loaders.Configs;
+using UnityEngine;
 
 namespace Services.Match
 {
@@ -81,10 +82,17 @@ namespace Services.Match
             _itemsFactory.ReturnPortion(_roundItems);
         }
 
-        private void OnTargetItemClicked(TargetItemClickedEvent obj)
+        private async void OnTargetItemClicked(TargetItemClickedEvent obj)
         {
-            EndRound();
-            StartRound().Forget();
+            try
+            {
+                EndRound();
+                await StartRound();
+            }
+            catch (Exception e)
+            {
+               Debug.LogError(e);
+            }
         }
 
         public void Dispose()
